@@ -78,7 +78,7 @@ public class PaintGun extends ProjectileWeaponItem implements PolymerItem {
                     var hand = player.getUsedItemHand();
 
                     createProjectile(serverLevel, player, projectileItem);
-                    itemStack.hurtAndBreak(1, livingEntity, LivingEntity.getSlotForHand(livingEntity.getUsedItemHand()));
+                    itemStack.hurtAndBreak(1, livingEntity, livingEntity.getUsedItemHand());
 
                     level.playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.SNOWBALL_THROW, SoundSource.PLAYERS, 1.0F, 1.0F / (level.getRandom().nextFloat() * 0.4F + 1.2F) + f * 0.5F);
                     player.awardStat(Stats.ITEM_USED.get(this));

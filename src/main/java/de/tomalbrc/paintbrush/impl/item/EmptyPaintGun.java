@@ -1,10 +1,7 @@
 package de.tomalbrc.paintbrush.impl.item;
 
-import com.mojang.math.Axis;
 import de.tomalbrc.paintbrush.impl.ModItems;
-import de.tomalbrc.paintbrush.impl.entity.Paintball;
 import eu.pb4.polymer.core.api.item.PolymerItem;
-import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvents;
@@ -64,7 +61,7 @@ public class EmptyPaintGun extends ProjectileWeaponItem implements PolymerItem {
                     var hand = player.getUsedItemHand();
 
                     PaintGun.createProjectile(serverLevel, player, projectileItem);
-                    itemStack.hurtAndBreak(1, livingEntity, LivingEntity.getSlotForHand(livingEntity.getUsedItemHand()));
+                    itemStack.hurtAndBreak(1, livingEntity, livingEntity.getUsedItemHand());
 
                     level.playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.SNOWBALL_THROW, SoundSource.PLAYERS, 1.0F, 1.0F / (level.getRandom().nextFloat() * 0.4F + 1.2F) + f * 0.5F);
                     player.awardStat(Stats.ITEM_USED.get(this));

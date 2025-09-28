@@ -72,7 +72,7 @@ public class PaintBrushItem extends Item implements PolymerItem {
                         if (success) {
                             var hand = livingEntity.getUsedItemHand();
                             var item = livingEntity.getUseItem();
-                            item.hurtAndBreak(1, livingEntity, LivingEntity.getSlotForHand(livingEntity.getUsedItemHand()));
+                            item.hurtAndBreak(1, livingEntity, livingEntity.getUsedItemHand());
                             if (item.isBroken() || item.isEmpty()) {
                                 livingEntity.releaseUsingItem();
                                 livingEntity.setItemInHand(hand, asEmpty());
