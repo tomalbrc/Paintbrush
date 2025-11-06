@@ -1,119 +1,313 @@
 package de.tomalbrc.paintbrush.impl;
 
-import de.tomalbrc.paintbrush.PaintBrushMod;
-import de.tomalbrc.paintbrush.impl.block.FallingTexturedBlock;
-import de.tomalbrc.paintbrush.impl.block.TexturedBlock;
-import de.tomalbrc.paintbrush.impl.block.TexturedPillarBlock;
-import de.tomalbrc.paintbrush.util.Util;
-import eu.pb4.polymer.blocks.api.BlockModelType;
-import eu.pb4.polymer.blocks.api.PolymerBlockModel;
-import eu.pb4.polymer.blocks.api.PolymerBlockResourceUtils;
-import eu.pb4.polymer.resourcepack.extras.api.format.blockstate.StateModelVariant;
-import eu.pb4.polymer.soundpatcher.api.SoundPatcher;
-import it.unimi.dsi.fastutil.objects.Reference2ObjectOpenHashMap;
-import net.fabricmc.fabric.api.registry.FlammableBlockRegistry;
-import net.minecraft.core.Registry;
-import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.core.registries.Registries;
-import net.minecraft.resources.ResourceKey;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.util.ColorRGBA;
+
+import de.tomalbrc.paintbrush.datagen.MineableTool;
 import net.minecraft.world.item.DyeColor;
-import net.minecraft.world.item.Item;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.RotatedPillarBlock;
-import net.minecraft.world.level.block.SandBlock;
-import net.minecraft.world.level.block.state.BlockBehaviour;
-import net.minecraft.world.level.block.state.BlockState;
-
-import java.util.Collection;
-import java.util.IdentityHashMap;
-import java.util.Map;
-import java.util.Set;
-import java.util.function.Function;
-
-import static de.tomalbrc.paintbrush.util.Data.*;
+import java.util.*;
 
 public class ModBlocks {
-    public static Map<Block, Map<DyeColor, Block>> BLOCK_COLOR_MAP = new IdentityHashMap<>();
+    private static List<PaintBlockCollection> PAINT_BLOCK_COLLECTIONS = null;
 
-    private static void registerPaintBlock(Block vanillaBlock, Map<BlockState, Set<StateModelVariant>> stateSetMap) {
-        Map<DyeColor, Block> blockMap = new IdentityHashMap<>();
-
-        boolean first = true;
-        for (var dye : DyeColor.values()) {
-            var blockId = BuiltInRegistries.BLOCK.getKey(vanillaBlock);
-            var newId = blockId.withSuffix("_" + dye.getName());
-
-            Map<BlockState, BlockState> localMap = null;
-            if (MODEL_REMAP.containsKey(vanillaBlock) && MODELMAP_BY_BLOCK_DYE.containsKey(MODEL_REMAP.get(vanillaBlock)) && MODELMAP_BY_BLOCK_DYE.get(MODEL_REMAP.get(vanillaBlock)).containsKey(dye)) {
-                localMap = MODELMAP_BY_BLOCK_DYE.get(MODEL_REMAP.get(vanillaBlock)).get(dye);
-            }
-
-            if (localMap == null && MODELMAP_BY_BLOCK_DYE.containsKey(vanillaBlock) && MODELMAP_BY_BLOCK_DYE.get(vanillaBlock).containsKey(dye)) {
-                localMap = MODELMAP_BY_BLOCK_DYE.get(vanillaBlock).get(dye);
-            }
-
-            if (localMap == null) {
-                localMap = new IdentityHashMap<>();
-                for (Map.Entry<BlockState, Set<StateModelVariant>> entry : stateSetMap.entrySet()) {
-                    var mapped = entry.getValue().stream().map(variant -> PolymerBlockModel.of(variant.model().withSuffix("_" + dye.getName()), variant.x(), variant.y(), variant.uvlock(), variant.weigth()));
-                    localMap.put(entry.getKey(), PolymerBlockResourceUtils.requestBlock(BlockModelType.FULL_BLOCK, mapped.toList().toArray(new PolymerBlockModel[0])));
-                }
-
-                var b = MODEL_REMAP.getOrDefault(vanillaBlock, vanillaBlock);
-                MODELMAP_BY_BLOCK_DYE.computeIfAbsent(b, x -> new Reference2ObjectOpenHashMap<>()).put(dye, localMap);
-            }
-
-            Block rblock;
-            Map<BlockState, BlockState> finalLocalMap = localMap;
-            if (vanillaBlock instanceof SandBlock sandBlock) {
-                rblock = ModBlocks.registerBlock(newId.getPath(), properties -> new FallingTexturedBlock(new ColorRGBA(sandBlock.getDustColor(null, null, null)), properties, finalLocalMap), BlockBehaviour.Properties.ofFullCopy(vanillaBlock).overrideLootTable(vanillaBlock.getLootTable()));
-            } else if (vanillaBlock instanceof RotatedPillarBlock pillarBlock) {
-                rblock = ModBlocks.registerBlock(newId.getPath(), properties -> new TexturedPillarBlock(properties, finalLocalMap), BlockBehaviour.Properties.ofFullCopy(vanillaBlock).overrideLootTable(vanillaBlock.getLootTable()));
-            } else {
-                rblock = ModBlocks.registerBlock(newId.getPath(), properties -> new TexturedBlock(properties, finalLocalMap), BlockBehaviour.Properties.ofFullCopy(vanillaBlock).overrideLootTable(vanillaBlock.getLootTable()));
-            }
-            Item.BY_BLOCK.put(rblock, vanillaBlock.asItem());
-
-            if (first) SoundPatcher.convertIntoServerSound(rblock.defaultBlockState().getSoundType());
-
-            var tags = BuiltInRegistries.BLOCK.get(BuiltInRegistries.BLOCK.getKey(Blocks.TERRACOTTA)).orElseThrow();
-            TAGS.put(rblock, tags);
-
-            var vanillaFire = FlammableBlockRegistry.getDefaultInstance().get(vanillaBlock);
-            if (vanillaFire != null) {
-                FlammableBlockRegistry.getDefaultInstance().add(rblock, vanillaFire.getBurnChance(), vanillaFire.getSpreadChance());
-            }
-
-            blockMap.put(dye, rblock);
-
-            first = false;
+    public static List<PaintBlockCollection> getPaintBlockCollections() {
+        if (PAINT_BLOCK_COLLECTIONS == null) {
+            PAINT_BLOCK_COLLECTIONS = initPaintBlockCollections();
         }
 
-        ModBlocks.BLOCK_COLOR_MAP.put(vanillaBlock, blockMap);
-
+        return PAINT_BLOCK_COLLECTIONS;
     }
 
-    public static void registerPaintBlocks(Collection<Block> list) {
-        int start = PolymerBlockResourceUtils.getBlocksLeft(BlockModelType.FULL_BLOCK);
-        PaintBrushMod.LOGGER.info("FULL_BLOCKS before: {}", start);
+    private static List<PaintBlockCollection> initPaintBlockCollections() {
+        List<PaintBlockCollection> collections = new ArrayList<>();
 
-        for (Block block : list) {
-            registerPaintBlock(block, Util.stateSetMap(PaintBrushMod.VBUILDER, block));
-        }
+        fillWithStandardCollections(collections);
+        fillWithVanillaCollections(collections);
+        fillWithSharedCollections(collections);
 
-        int end = PolymerBlockResourceUtils.getBlocksLeft(BlockModelType.FULL_BLOCK);
-        PaintBrushMod.LOGGER.info("FULL_BLOCKS left: {}, used {}", end, start-end);
+        return collections;
     }
 
-    public static <T extends Block> T registerBlock(String resourceKey, Function<BlockBehaviour.Properties, T> function, BlockBehaviour.Properties properties) {
-        T block = function.apply(properties.setId(key(resourceKey)));
-        return Registry.register(BuiltInRegistries.BLOCK, resourceKey, block);
+    private static void fillWithVanillaCollections(List<PaintBlockCollection> collections) {
+        Map<DyeColor, Block> terracottaMap = new HashMap<>();
+        terracottaMap.put(DyeColor.WHITE, Blocks.WHITE_TERRACOTTA);
+        terracottaMap.put(DyeColor.ORANGE, Blocks.ORANGE_TERRACOTTA);
+        terracottaMap.put(DyeColor.MAGENTA, Blocks.MAGENTA_TERRACOTTA);
+        terracottaMap.put(DyeColor.LIGHT_BLUE, Blocks.LIGHT_BLUE_TERRACOTTA);
+        terracottaMap.put(DyeColor.YELLOW, Blocks.YELLOW_TERRACOTTA);
+        terracottaMap.put(DyeColor.LIME, Blocks.LIME_TERRACOTTA);
+        terracottaMap.put(DyeColor.PINK, Blocks.PINK_TERRACOTTA);
+        terracottaMap.put(DyeColor.GRAY, Blocks.GRAY_TERRACOTTA);
+        terracottaMap.put(DyeColor.LIGHT_GRAY, Blocks.LIGHT_GRAY_TERRACOTTA);
+        terracottaMap.put(DyeColor.CYAN, Blocks.CYAN_TERRACOTTA);
+        terracottaMap.put(DyeColor.PURPLE, Blocks.PURPLE_TERRACOTTA);
+        terracottaMap.put(DyeColor.BLUE, Blocks.BLUE_TERRACOTTA);
+        terracottaMap.put(DyeColor.BROWN, Blocks.BROWN_TERRACOTTA);
+        terracottaMap.put(DyeColor.GREEN, Blocks.GREEN_TERRACOTTA);
+        terracottaMap.put(DyeColor.RED, Blocks.RED_TERRACOTTA);
+        terracottaMap.put(DyeColor.BLACK, Blocks.BLACK_TERRACOTTA);
+        collections.add(PaintBlockCollection.vanilla(Blocks.TERRACOTTA, terracottaMap));
+
+        Map<DyeColor, Block> concreteMap = new HashMap<>();
+        concreteMap.put(DyeColor.WHITE, Blocks.WHITE_CONCRETE);
+        concreteMap.put(DyeColor.ORANGE, Blocks.ORANGE_CONCRETE);
+        concreteMap.put(DyeColor.MAGENTA, Blocks.MAGENTA_CONCRETE);
+        concreteMap.put(DyeColor.LIGHT_BLUE, Blocks.LIGHT_BLUE_CONCRETE);
+        concreteMap.put(DyeColor.YELLOW, Blocks.YELLOW_CONCRETE);
+        concreteMap.put(DyeColor.LIME, Blocks.LIME_CONCRETE);
+        concreteMap.put(DyeColor.PINK, Blocks.PINK_CONCRETE);
+        concreteMap.put(DyeColor.GRAY, Blocks.GRAY_CONCRETE);
+        concreteMap.put(DyeColor.LIGHT_GRAY, Blocks.LIGHT_GRAY_CONCRETE);
+        concreteMap.put(DyeColor.CYAN, Blocks.CYAN_CONCRETE);
+        concreteMap.put(DyeColor.PURPLE, Blocks.PURPLE_CONCRETE);
+        concreteMap.put(DyeColor.BLUE, Blocks.BLUE_CONCRETE);
+        concreteMap.put(DyeColor.BROWN, Blocks.BROWN_CONCRETE);
+        concreteMap.put(DyeColor.GREEN, Blocks.GREEN_CONCRETE);
+        concreteMap.put(DyeColor.RED, Blocks.RED_CONCRETE);
+        concreteMap.put(DyeColor.BLACK, Blocks.BLACK_CONCRETE);
+        collections.add(PaintBlockCollection.vanilla(Blocks.WHITE_CONCRETE, concreteMap));
+
+        Map<DyeColor, Block> glassMap = new HashMap<>();
+        glassMap.put(DyeColor.WHITE, Blocks.WHITE_STAINED_GLASS);
+        glassMap.put(DyeColor.ORANGE, Blocks.ORANGE_STAINED_GLASS);
+        glassMap.put(DyeColor.MAGENTA, Blocks.MAGENTA_STAINED_GLASS);
+        glassMap.put(DyeColor.LIGHT_BLUE, Blocks.LIGHT_BLUE_STAINED_GLASS);
+        glassMap.put(DyeColor.YELLOW, Blocks.YELLOW_STAINED_GLASS);
+        glassMap.put(DyeColor.LIME, Blocks.LIME_STAINED_GLASS);
+        glassMap.put(DyeColor.PINK, Blocks.PINK_STAINED_GLASS);
+        glassMap.put(DyeColor.GRAY, Blocks.GRAY_STAINED_GLASS);
+        glassMap.put(DyeColor.LIGHT_GRAY, Blocks.LIGHT_GRAY_STAINED_GLASS);
+        glassMap.put(DyeColor.CYAN, Blocks.CYAN_STAINED_GLASS);
+        glassMap.put(DyeColor.PURPLE, Blocks.PURPLE_STAINED_GLASS);
+        glassMap.put(DyeColor.BLUE, Blocks.BLUE_STAINED_GLASS);
+        glassMap.put(DyeColor.BROWN, Blocks.BROWN_STAINED_GLASS);
+        glassMap.put(DyeColor.GREEN, Blocks.GREEN_STAINED_GLASS);
+        glassMap.put(DyeColor.RED, Blocks.RED_STAINED_GLASS);
+        glassMap.put(DyeColor.BLACK, Blocks.BLACK_STAINED_GLASS);
+        collections.add(PaintBlockCollection.vanilla(Blocks.GLASS, glassMap));
+
+        Map<DyeColor, Block> woolMap = new HashMap<>();
+        woolMap.put(DyeColor.WHITE, Blocks.WHITE_WOOL);
+        woolMap.put(DyeColor.ORANGE, Blocks.ORANGE_WOOL);
+        woolMap.put(DyeColor.MAGENTA, Blocks.MAGENTA_WOOL);
+        woolMap.put(DyeColor.LIGHT_BLUE, Blocks.LIGHT_BLUE_WOOL);
+        woolMap.put(DyeColor.YELLOW, Blocks.YELLOW_WOOL);
+        woolMap.put(DyeColor.LIME, Blocks.LIME_WOOL);
+        woolMap.put(DyeColor.PINK, Blocks.PINK_WOOL);
+        woolMap.put(DyeColor.GRAY, Blocks.GRAY_WOOL);
+        woolMap.put(DyeColor.LIGHT_GRAY, Blocks.LIGHT_GRAY_WOOL);
+        woolMap.put(DyeColor.CYAN, Blocks.CYAN_WOOL);
+        woolMap.put(DyeColor.PURPLE, Blocks.PURPLE_WOOL);
+        woolMap.put(DyeColor.BLUE, Blocks.BLUE_WOOL);
+        woolMap.put(DyeColor.BROWN, Blocks.BROWN_WOOL);
+        woolMap.put(DyeColor.GREEN, Blocks.GREEN_WOOL);
+        woolMap.put(DyeColor.RED, Blocks.RED_WOOL);
+        woolMap.put(DyeColor.BLACK, Blocks.BLACK_WOOL);
+        collections.add(PaintBlockCollection.vanilla(Blocks.WHITE_WOOL, woolMap));
+
+        Map<DyeColor, Block> carpetMap = new HashMap<>();
+        carpetMap.put(DyeColor.WHITE, Blocks.WHITE_CARPET);
+        carpetMap.put(DyeColor.ORANGE, Blocks.ORANGE_CARPET);
+        carpetMap.put(DyeColor.MAGENTA, Blocks.MAGENTA_CARPET);
+        carpetMap.put(DyeColor.LIGHT_BLUE, Blocks.LIGHT_BLUE_CARPET);
+        carpetMap.put(DyeColor.YELLOW, Blocks.YELLOW_CARPET);
+        carpetMap.put(DyeColor.LIME, Blocks.LIME_CARPET);
+        carpetMap.put(DyeColor.PINK, Blocks.PINK_CARPET);
+        carpetMap.put(DyeColor.GRAY, Blocks.GRAY_CARPET);
+        carpetMap.put(DyeColor.LIGHT_GRAY, Blocks.LIGHT_GRAY_CARPET);
+        carpetMap.put(DyeColor.CYAN, Blocks.CYAN_CARPET);
+        carpetMap.put(DyeColor.PURPLE, Blocks.PURPLE_CARPET);
+        carpetMap.put(DyeColor.BLUE, Blocks.BLUE_CARPET);
+        carpetMap.put(DyeColor.BROWN, Blocks.BROWN_CARPET);
+        carpetMap.put(DyeColor.GREEN, Blocks.GREEN_CARPET);
+        carpetMap.put(DyeColor.RED, Blocks.RED_CARPET);
+        carpetMap.put(DyeColor.BLACK, Blocks.BLACK_CARPET);
+        collections.add(PaintBlockCollection.vanilla(Blocks.WHITE_CARPET, carpetMap));
+
+        Map<DyeColor, Block> concretePowderMap = new HashMap<>();
+        concretePowderMap.put(DyeColor.WHITE, Blocks.WHITE_CONCRETE_POWDER);
+        concretePowderMap.put(DyeColor.ORANGE, Blocks.ORANGE_CONCRETE_POWDER);
+        concretePowderMap.put(DyeColor.MAGENTA, Blocks.MAGENTA_CONCRETE_POWDER);
+        concretePowderMap.put(DyeColor.LIGHT_BLUE, Blocks.LIGHT_BLUE_CONCRETE_POWDER);
+        concretePowderMap.put(DyeColor.YELLOW, Blocks.YELLOW_CONCRETE_POWDER);
+        concretePowderMap.put(DyeColor.LIME, Blocks.LIME_CONCRETE_POWDER);
+        concretePowderMap.put(DyeColor.PINK, Blocks.PINK_CONCRETE_POWDER);
+        concretePowderMap.put(DyeColor.GRAY, Blocks.GRAY_CONCRETE_POWDER);
+        concretePowderMap.put(DyeColor.LIGHT_GRAY, Blocks.LIGHT_GRAY_CONCRETE_POWDER);
+        concretePowderMap.put(DyeColor.CYAN, Blocks.CYAN_CONCRETE_POWDER);
+        concretePowderMap.put(DyeColor.PURPLE, Blocks.PURPLE_CONCRETE_POWDER);
+        concretePowderMap.put(DyeColor.BLUE, Blocks.BLUE_CONCRETE_POWDER);
+        concretePowderMap.put(DyeColor.BROWN, Blocks.BROWN_CONCRETE_POWDER);
+        concretePowderMap.put(DyeColor.GREEN, Blocks.GREEN_CONCRETE_POWDER);
+        concretePowderMap.put(DyeColor.RED, Blocks.RED_CONCRETE_POWDER);
+        concretePowderMap.put(DyeColor.BLACK, Blocks.BLACK_CONCRETE_POWDER);
+        collections.add(PaintBlockCollection.vanilla(Blocks.WHITE_CONCRETE_POWDER, concretePowderMap));
+
+        Map<DyeColor, Block> glazedTerracottaMap = new HashMap<>();
+        glazedTerracottaMap.put(DyeColor.WHITE, Blocks.WHITE_GLAZED_TERRACOTTA);
+        glazedTerracottaMap.put(DyeColor.ORANGE, Blocks.ORANGE_GLAZED_TERRACOTTA);
+        glazedTerracottaMap.put(DyeColor.MAGENTA, Blocks.MAGENTA_GLAZED_TERRACOTTA);
+        glazedTerracottaMap.put(DyeColor.LIGHT_BLUE, Blocks.LIGHT_BLUE_GLAZED_TERRACOTTA);
+        glazedTerracottaMap.put(DyeColor.YELLOW, Blocks.YELLOW_GLAZED_TERRACOTTA);
+        glazedTerracottaMap.put(DyeColor.LIME, Blocks.LIME_GLAZED_TERRACOTTA);
+        glazedTerracottaMap.put(DyeColor.PINK, Blocks.PINK_GLAZED_TERRACOTTA);
+        glazedTerracottaMap.put(DyeColor.GRAY, Blocks.GRAY_GLAZED_TERRACOTTA);
+        glazedTerracottaMap.put(DyeColor.LIGHT_GRAY, Blocks.LIGHT_GRAY_GLAZED_TERRACOTTA);
+        glazedTerracottaMap.put(DyeColor.CYAN, Blocks.CYAN_GLAZED_TERRACOTTA);
+        glazedTerracottaMap.put(DyeColor.PURPLE, Blocks.PURPLE_GLAZED_TERRACOTTA);
+        glazedTerracottaMap.put(DyeColor.BLUE, Blocks.BLUE_GLAZED_TERRACOTTA);
+        glazedTerracottaMap.put(DyeColor.BROWN, Blocks.BROWN_GLAZED_TERRACOTTA);
+        glazedTerracottaMap.put(DyeColor.GREEN, Blocks.GREEN_GLAZED_TERRACOTTA);
+        glazedTerracottaMap.put(DyeColor.RED, Blocks.RED_GLAZED_TERRACOTTA);
+        glazedTerracottaMap.put(DyeColor.BLACK, Blocks.BLACK_GLAZED_TERRACOTTA);
+        collections.add(PaintBlockCollection.vanilla(Blocks.WHITE_GLAZED_TERRACOTTA, glazedTerracottaMap));
     }
 
-    public static ResourceKey<Block> key(String id) {
-        return ResourceKey.create(Registries.BLOCK, ResourceLocation.withDefaultNamespace(id));
+    private static void fillWithSharedCollections(List<PaintBlockCollection> collections) {
+        PaintBlockCollection planksCollection = PaintBlockCollection.standard(Blocks.OAK_PLANKS, MineableTool.AXE);
+        collections.add(planksCollection);
+        collections.add(PaintBlockCollection.shared(Blocks.BIRCH_PLANKS, planksCollection));
+        collections.add(PaintBlockCollection.shared(Blocks.SPRUCE_PLANKS, planksCollection));
+        collections.add(PaintBlockCollection.shared(Blocks.JUNGLE_PLANKS, planksCollection));
+        collections.add(PaintBlockCollection.shared(Blocks.ACACIA_PLANKS, planksCollection));
+        collections.add(PaintBlockCollection.shared(Blocks.DARK_OAK_PLANKS, planksCollection));
+        collections.add(PaintBlockCollection.shared(Blocks.CRIMSON_PLANKS, planksCollection));
+        collections.add(PaintBlockCollection.shared(Blocks.WARPED_PLANKS, planksCollection));
+        collections.add(PaintBlockCollection.shared(Blocks.MANGROVE_PLANKS, planksCollection));
+        collections.add(PaintBlockCollection.shared(Blocks.CHERRY_PLANKS, planksCollection));
+        collections.add(PaintBlockCollection.shared(Blocks.PALE_OAK_PLANKS, planksCollection));
+
+        PaintBlockCollection logsCollection = PaintBlockCollection.standard(Blocks.OAK_LOG, MineableTool.AXE);
+        collections.add(logsCollection);
+        collections.add(PaintBlockCollection.shared(Blocks.BIRCH_LOG, logsCollection));
+        collections.add(PaintBlockCollection.shared(Blocks.SPRUCE_LOG, logsCollection));
+        collections.add(PaintBlockCollection.shared(Blocks.JUNGLE_LOG, logsCollection));
+        collections.add(PaintBlockCollection.shared(Blocks.ACACIA_LOG, logsCollection));
+        collections.add(PaintBlockCollection.shared(Blocks.DARK_OAK_LOG, logsCollection));
+        collections.add(PaintBlockCollection.shared(Blocks.CRIMSON_STEM, logsCollection));
+        collections.add(PaintBlockCollection.shared(Blocks.WARPED_STEM, logsCollection));
+        collections.add(PaintBlockCollection.shared(Blocks.MANGROVE_LOG, logsCollection));
+        collections.add(PaintBlockCollection.shared(Blocks.CHERRY_LOG, logsCollection));
+        collections.add(PaintBlockCollection.shared(Blocks.PALE_OAK_LOG, logsCollection));
+
+        PaintBlockCollection strippedLogsCollection = PaintBlockCollection.standard(Blocks.STRIPPED_OAK_LOG, MineableTool.AXE);
+        collections.add(strippedLogsCollection);
+        collections.add(PaintBlockCollection.shared(Blocks.STRIPPED_BIRCH_LOG, strippedLogsCollection));
+        collections.add(PaintBlockCollection.shared(Blocks.STRIPPED_SPRUCE_LOG, strippedLogsCollection));
+        collections.add(PaintBlockCollection.shared(Blocks.STRIPPED_JUNGLE_LOG, strippedLogsCollection));
+        collections.add(PaintBlockCollection.shared(Blocks.STRIPPED_ACACIA_LOG, strippedLogsCollection));
+        collections.add(PaintBlockCollection.shared(Blocks.STRIPPED_DARK_OAK_LOG, strippedLogsCollection));
+        collections.add(PaintBlockCollection.shared(Blocks.STRIPPED_CRIMSON_STEM, strippedLogsCollection));
+        collections.add(PaintBlockCollection.shared(Blocks.STRIPPED_WARPED_STEM, strippedLogsCollection));
+        collections.add(PaintBlockCollection.shared(Blocks.STRIPPED_MANGROVE_LOG, strippedLogsCollection));
+        collections.add(PaintBlockCollection.shared(Blocks.STRIPPED_CHERRY_LOG, strippedLogsCollection));
+        collections.add(PaintBlockCollection.shared(Blocks.STRIPPED_PALE_OAK_LOG, strippedLogsCollection));
+
+        PaintBlockCollection cobblestoneCollection = PaintBlockCollection.standard(Blocks.COBBLESTONE, MineableTool.PICKAXE);
+        collections.add(cobblestoneCollection);
+        collections.add(PaintBlockCollection.shared(Blocks.MOSSY_COBBLESTONE, cobblestoneCollection));
+
+        PaintBlockCollection stoneBricksCollection = PaintBlockCollection.standard(Blocks.STONE_BRICKS, MineableTool.PICKAXE);
+        collections.add(stoneBricksCollection);
+        collections.add(PaintBlockCollection.shared(Blocks.MOSSY_STONE_BRICKS, stoneBricksCollection));
+        collections.add(PaintBlockCollection.shared(Blocks.CRACKED_STONE_BRICKS, stoneBricksCollection));
+
+        PaintBlockCollection polishedBlackstoneBricksCollection = PaintBlockCollection.standard(Blocks.POLISHED_BLACKSTONE_BRICKS, MineableTool.PICKAXE);
+        collections.add(polishedBlackstoneBricksCollection);
+        collections.add(PaintBlockCollection.shared(Blocks.CRACKED_POLISHED_BLACKSTONE_BRICKS, polishedBlackstoneBricksCollection));
+
+        PaintBlockCollection netherBricksCollection = PaintBlockCollection.standard(Blocks.NETHER_BRICKS, MineableTool.PICKAXE);
+        collections.add(netherBricksCollection);
+        collections.add(PaintBlockCollection.shared(Blocks.CRACKED_NETHER_BRICKS, netherBricksCollection));
+        collections.add(PaintBlockCollection.shared(Blocks.RED_NETHER_BRICKS, netherBricksCollection));
+
+        PaintBlockCollection deepslateTilesCollection = PaintBlockCollection.standard(Blocks.DEEPSLATE_TILES, MineableTool.PICKAXE);
+        collections.add(deepslateTilesCollection);
+        collections.add(PaintBlockCollection.shared(Blocks.CRACKED_DEEPSLATE_TILES, deepslateTilesCollection));
+
+        PaintBlockCollection deepslateBricksCollection = PaintBlockCollection.standard(Blocks.DEEPSLATE_BRICKS, MineableTool.PICKAXE);
+        collections.add(deepslateBricksCollection);
+        collections.add(PaintBlockCollection.shared(Blocks.CRACKED_DEEPSLATE_BRICKS, deepslateBricksCollection));
+
+        PaintBlockCollection sandCollection = PaintBlockCollection.standard(Blocks.SAND, MineableTool.SHOVEL);
+        collections.add(sandCollection);
+        collections.add(PaintBlockCollection.shared(Blocks.RED_SAND, sandCollection));
+
+        PaintBlockCollection sandstoneCollection = PaintBlockCollection.standard(Blocks.SANDSTONE, MineableTool.PICKAXE);
+        collections.add(sandstoneCollection);
+        collections.add(PaintBlockCollection.shared(Blocks.RED_SANDSTONE, sandstoneCollection));
+
+        PaintBlockCollection smoothSandstoneCollection = PaintBlockCollection.standard(Blocks.SMOOTH_SANDSTONE, MineableTool.PICKAXE);
+        collections.add(smoothSandstoneCollection);
+        collections.add(PaintBlockCollection.shared(Blocks.SMOOTH_RED_SANDSTONE, smoothSandstoneCollection));
+
+        PaintBlockCollection cutSandstoneCollection = PaintBlockCollection.standard(Blocks.CUT_SANDSTONE, MineableTool.PICKAXE);
+        collections.add(cutSandstoneCollection);
+        collections.add(PaintBlockCollection.shared(Blocks.CUT_RED_SANDSTONE, cutSandstoneCollection));
+
+        PaintBlockCollection nyliumCollection = PaintBlockCollection.standard(Blocks.WARPED_NYLIUM, MineableTool.PICKAXE);
+        collections.add(nyliumCollection);
+        collections.add(PaintBlockCollection.shared(Blocks.CRIMSON_NYLIUM, nyliumCollection));
+    }
+
+    private static void fillWithStandardCollections(List<PaintBlockCollection> collections) {
+        Block[] standardBlocksMineableWithPickaxe = {
+                Blocks.DEEPSLATE,
+                Blocks.COBBLED_DEEPSLATE,
+                Blocks.POLISHED_DEEPSLATE,
+                Blocks.CHISELED_DEEPSLATE,
+
+                Blocks.TUFF,
+                Blocks.CHISELED_TUFF,
+                Blocks.TUFF_BRICKS,
+                Blocks.CHISELED_TUFF_BRICKS,
+                Blocks.POLISHED_TUFF,
+                Blocks.CALCITE,
+
+                Blocks.STONE,
+                Blocks.CHISELED_STONE_BRICKS,
+                Blocks.SMOOTH_STONE,
+
+                Blocks.GRANITE,
+                Blocks.POLISHED_GRANITE,
+                Blocks.ANDESITE,
+                Blocks.POLISHED_ANDESITE,
+                Blocks.DIORITE,
+                Blocks.POLISHED_DIORITE,
+
+                Blocks.BRICKS,
+                Blocks.MUD_BRICKS,
+
+                Blocks.NETHERRACK,
+                Blocks.CHISELED_NETHER_BRICKS,
+                Blocks.BASALT,
+                Blocks.SMOOTH_BASALT,
+                Blocks.POLISHED_BASALT,
+
+                Blocks.BLACKSTONE,
+                Blocks.POLISHED_BLACKSTONE,
+                Blocks.CHISELED_POLISHED_BLACKSTONE,
+
+                Blocks.QUARTZ_BLOCK,
+                Blocks.QUARTZ_BRICKS,
+                Blocks.CHISELED_QUARTZ_BLOCK,
+                Blocks.QUARTZ_PILLAR,
+                Blocks.SMOOTH_QUARTZ,
+
+                Blocks.END_STONE,
+                Blocks.END_STONE_BRICKS,
+                Blocks.PURPUR_BLOCK,
+                Blocks.PURPUR_PILLAR,
+
+                Blocks.PACKED_MUD,
+        };
+
+        Block[] standardBlocksMineableWithShovel = {
+                Blocks.DIRT,
+                Blocks.GRAVEL,
+        };
+
+        Arrays.stream(standardBlocksMineableWithPickaxe).map(block -> PaintBlockCollection.standard(block, MineableTool.PICKAXE)).forEach(collections::add);
+        Arrays.stream(standardBlocksMineableWithShovel).map(block -> PaintBlockCollection.standard(block, MineableTool.SHOVEL)).forEach(collections::add);
     }
 }
