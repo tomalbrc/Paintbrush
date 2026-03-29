@@ -1,10 +1,10 @@
 package de.tomalbrc.paintbrush.impl.block;
 
 import eu.pb4.polymer.blocks.api.PolymerTexturedBlock;
+import net.fabricmc.fabric.api.networking.v1.context.PacketContext;
 import net.minecraft.util.ColorRGBA;
 import net.minecraft.world.level.block.SandBlock;
 import net.minecraft.world.level.block.state.BlockState;
-import xyz.nucleoid.packettweaker.PacketContext;
 
 import java.util.Map;
 

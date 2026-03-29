@@ -3,13 +3,15 @@ package de.tomalbrc.paintbrush.impl.item;
 import de.tomalbrc.paintbrush.impl.ModBlocks;
 import de.tomalbrc.paintbrush.impl.ModItems;
 import eu.pb4.polymer.core.api.item.PolymerItem;
+import net.fabricmc.fabric.api.networking.v1.context.PacketContext;
 import net.fabricmc.loader.impl.util.StringUtil;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.particles.DustParticleOptions;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.EntitySelector;
@@ -27,7 +29,6 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import xyz.nucleoid.packettweaker.PacketContext;
 
 import java.util.Map;
 import java.util.function.Consumer;
@@ -35,9 +36,9 @@ import java.util.function.Function;
 
 public class PaintBrushItem extends Item implements PolymerItem {
     protected final DyeColor dyeColor;
-    protected final ResourceLocation model;
+    protected final Identifier model;
 
-    public PaintBrushItem(DyeColor dyeColor, Properties properties, ResourceLocation model) {
+    public PaintBrushItem(DyeColor dyeColor, Properties properties, Identifier model) {
         super(properties.stacksTo(1).component(DataComponents.TOOLTIP_DISPLAY, TooltipDisplay.DEFAULT.withHidden(DataComponents.DYED_COLOR, true)).component(DataComponents.DAMAGE, 0).component(DataComponents.DYED_COLOR, new DyedItemColor(dyeColor.getTextureDiffuseColor())));
         this.model = model;
         this.dyeColor = dyeColor;
@@ -49,7 +50,7 @@ public class PaintBrushItem extends Item implements PolymerItem {
     }
 
     @Override
-    public @Nullable ResourceLocation getPolymerItemModel(ItemStack stack, PacketContext context) {
+    public @Nullable Identifier getPolymerItemModel(ItemStack stack, PacketContext context, HolderLookup.Provider provider) {
         return model;
     }
 

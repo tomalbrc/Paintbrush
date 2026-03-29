@@ -16,7 +16,7 @@ import net.minecraft.core.Registry;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.util.ColorRGBA;
 import net.minecraft.world.item.DyeColor;
 import net.minecraft.world.item.Item;
@@ -84,7 +84,7 @@ public class ModBlocks {
 
             var vanillaFire = FlammableBlockRegistry.getDefaultInstance().get(vanillaBlock);
             if (vanillaFire != null) {
-                FlammableBlockRegistry.getDefaultInstance().add(rblock, vanillaFire.getBurnChance(), vanillaFire.getSpreadChance());
+                FlammableBlockRegistry.getDefaultInstance().add(rblock, vanillaFire.getIgniteOdds(), vanillaFire.getBurnOdds());
             }
 
             blockMap.put(dye, rblock);
@@ -114,6 +114,6 @@ public class ModBlocks {
     }
 
     public static ResourceKey<Block> key(String id) {
-        return ResourceKey.create(Registries.BLOCK, ResourceLocation.withDefaultNamespace(id));
+        return ResourceKey.create(Registries.BLOCK, Identifier.withDefaultNamespace(id));
     }
 }

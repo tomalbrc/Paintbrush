@@ -5,7 +5,7 @@ import it.unimi.dsi.fastutil.objects.Reference2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.Reference2ReferenceArrayMap;
 import it.unimi.dsi.fastutil.objects.ReferenceArrayList;
 import net.minecraft.core.Holder;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.DyeColor;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
@@ -14,9 +14,9 @@ import net.minecraft.world.level.block.state.BlockState;
 import java.util.Map;
 
 public class Data {
-    public static Map<ResourceLocation, ResourceLocation> TEXTURE_REDIRECT = ImmutableMap.<ResourceLocation, ResourceLocation>builder()
-            .put(ResourceLocation.withDefaultNamespace("block/mossy_cobblestone"), ResourceLocation.withDefaultNamespace("block/cobblestone"))
-            .put(ResourceLocation.withDefaultNamespace("block/mossy_stone_bricks"), ResourceLocation.withDefaultNamespace("block/stone_bricks"))
+    public static Map<Identifier, Identifier> TEXTURE_REDIRECT = ImmutableMap.<Identifier, Identifier>builder()
+            .put(Identifier.withDefaultNamespace("block/mossy_cobblestone"), Identifier.withDefaultNamespace("block/cobblestone"))
+            .put(Identifier.withDefaultNamespace("block/mossy_stone_bricks"), Identifier.withDefaultNamespace("block/stone_bricks"))
             .build();
 
     public static Map<Block, Holder.Reference<Block>> TAGS = new Reference2ReferenceArrayMap<>();

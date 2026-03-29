@@ -9,8 +9,11 @@ import de.tomalbrc.paintbrush.impl.gen.TextureGenerator;
 import de.tomalbrc.paintbrush.util.Data;
 import de.tomalbrc.paintbrush.util.ImageConverter;
 import de.tomalbrc.paintbrush.util.Util;
+import eu.pb4.polymer.resourcepack.api.OutputGenerator;
 import eu.pb4.polymer.resourcepack.api.PolymerResourcePackUtils;
 import eu.pb4.polymer.resourcepack.api.ResourcePackBuilder;
+import eu.pb4.polymer.resourcepack.api.ResourcePackStatusConsumer;
+import eu.pb4.polymer.resourcepack.impl.generation.DefaultRPBuilder;
 import it.unimi.dsi.fastutil.objects.Reference2ReferenceArrayMap;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.loader.api.FabricLoader;
@@ -31,7 +34,7 @@ public class PaintBrushMod implements ModInitializer {
     public void onInitialize() {
         PolymerResourcePackUtils.addModAssets(MODID);
         PolymerResourcePackUtils.markAsRequired();
-        VBUILDER = PolymerResourcePackUtils.createBuilder(FabricLoader.getInstance().getGameDir().resolve("polymer/a"));
+        VBUILDER = new DefaultRPBuilder<>(OutputGenerator.zipGenerator(FabricLoader.getInstance().getGameDir().resolve("polymer/a")), ResourcePackStatusConsumer.nonLogging());
 
         var list = Data.prepare();
 

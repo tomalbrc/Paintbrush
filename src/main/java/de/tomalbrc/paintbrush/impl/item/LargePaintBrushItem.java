@@ -6,7 +6,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.DyeColor;
@@ -17,7 +17,7 @@ import org.jetbrains.annotations.NotNull;
 import java.util.function.Function;
 
 public class LargePaintBrushItem extends PaintBrushItem implements PolymerItem {
-    public LargePaintBrushItem(DyeColor dyeColor, Properties properties, ResourceLocation model) {
+    public LargePaintBrushItem(DyeColor dyeColor, Properties properties, Identifier model) {
         super(dyeColor, properties.stacksTo(1).component(DataComponents.DAMAGE, 0), model);
     }
 

@@ -15,7 +15,7 @@ import eu.pb4.polymer.resourcepack.extras.api.format.blockstate.StateModelVarian
 import eu.pb4.polymer.resourcepack.extras.api.format.model.ModelAsset;
 import net.minecraft.commands.arguments.blocks.BlockStateParser;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.DyeColor;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
@@ -30,8 +30,8 @@ import java.util.stream.Collectors;
 import static de.tomalbrc.paintbrush.util.Data.TEXTURE_REDIRECT;
 
 public class Util {
-    public static ResourceLocation id(String id) {
-        return ResourceLocation.fromNamespaceAndPath(PaintBrushMod.MODID, id);
+    public static Identifier id(String id) {
+        return Identifier.fromNamespaceAndPath(PaintBrushMod.MODID, id);
     }
 
     public static Map<BlockState, Set<StateModelVariant>> stateSetMap(ResourcePackBuilder resourcePackBuilder, Block block) {
@@ -73,12 +73,12 @@ public class Util {
         return r;
     }
 
-    private static void colorModel(ResourcePackBuilder resourcePackBuilder, Block block, String modelData, ResourceLocation modelPath, List<JsonObject> r) throws Exception {
+    private static void colorModel(ResourcePackBuilder resourcePackBuilder, Block block, String modelData, Identifier modelPath, List<JsonObject> r) throws Exception {
         var json = ModelAsset.fromJson(modelData);
 
-        for (String value : json.textures().values()) {
-            if (!value.startsWith("#")) {
-                var parsed = ResourceLocation.parse(value);
+        for (ModelAsset.TextureSlot value : json.textures().values()) {
+            if (value instanceof ModelAsset.TextureValue reference) {
+                var parsed = reference.sprite();
                 JsonObject source = TextureAtlasGenerator.getAtlasSourceJson(parsed);
                 r.add(source);
             }
@@ -91,11 +91,10 @@ public class Util {
             if (json.parent().isPresent())
                 modelBuilder.parent(json.parent().get());
 
-            for (Map.Entry<String, String> entry : json.textures().entrySet()) {
-                if (!entry.getValue().startsWith("#")) {
-                    var valId = ResourceLocation.parse(entry.getValue());
-
-                    var id = ResourceLocation.parse(entry.getValue());
+            for (var entry : json.textures().entrySet()) {
+                if (entry.getValue() instanceof ModelAsset.TextureValue value) {
+                    var valId = value.sprite();
+                    var id = value.sprite();
                     var paletteIdRedirect = TEXTURE_REDIRECT.getOrDefault(id, id);
                     var img = ImageIO.read(new ByteArrayInputStream(resourcePackBuilder.getDataOrSource(AssetPaths.texture(paletteIdRedirect) + ".png")));
                     var paletteKeyImage = TextureGenerator.generatePaletteKey(img);
@@ -105,7 +104,7 @@ public class Util {
                     resourcePackBuilder.addData("assets/minecraft/textures/colormap/color_palettes/" + valId.getPath() + "_" + dye.getName() + ".png", paletted);
 
                     var suffixedId = id.withSuffix("_" + dye.getName());
-                    modelBuilder.texture(entry.getKey(), ResourceLocation.fromNamespaceAndPath("minecraft", suffixedId.getPath()).toString());
+                    modelBuilder.texture(entry.getKey(), Identifier.fromNamespaceAndPath("minecraft", suffixedId.getPath()));
                 }
             }
 
@@ -113,7 +112,7 @@ public class Util {
         }
     }
 
-    private static @NotNull Map<BlockState, Set<StateModelVariant>> getBlockStateSetMap(JsonObject variants, ResourceLocation blockId) {
+    private static @NotNull Map<BlockState, Set<StateModelVariant>> getBlockStateSetMap(JsonObject variants, Identifier blockId) {
         Map<BlockState, Set<StateModelVariant>> map = new IdentityHashMap<>();
         for (Map.Entry<String, JsonElement> entry : variants.entrySet()) {
             BlockStateParser.BlockResult parsed;

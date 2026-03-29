@@ -3,11 +3,16 @@ package de.tomalbrc.paintbrush.impl.item;
 import de.tomalbrc.paintbrush.impl.ModItems;
 import de.tomalbrc.paintbrush.impl.entity.Paintball;
 import eu.pb4.polymer.core.api.item.PolymerItem;
+import net.fabricmc.fabric.api.networking.v1.context.PacketContext;
 import net.fabricmc.loader.impl.util.StringUtil;
 import net.minecraft.core.Direction;
+import net.minecraft.core.Holder;
+import net.minecraft.core.HolderLookup;
+import net.minecraft.core.component.DataComponentLookup;
 import net.minecraft.core.component.DataComponents;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
@@ -23,16 +28,16 @@ import net.minecraft.world.item.component.DyedItemColor;
 import net.minecraft.world.level.Level;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import xyz.nucleoid.packettweaker.PacketContext;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.function.Predicate;
 
 public class PaintGun extends ProjectileWeaponItem implements PolymerItem {
     final private DyeColor color;
-    final private ResourceLocation model;
+    final private Identifier model;
 
-    public PaintGun(DyeColor color, Properties properties, ResourceLocation model) {
+    public PaintGun(DyeColor color, Properties properties, Identifier model) {
         super(properties.durability(64*3).component(DataComponents.DYED_COLOR, new DyedItemColor(color.getTextureDiffuseColor())));
         this.color = color;
         this.model = model;
@@ -44,7 +49,7 @@ public class PaintGun extends ProjectileWeaponItem implements PolymerItem {
     }
 
     @Override
-    public @Nullable ResourceLocation getPolymerItemModel(ItemStack stack, PacketContext context) {
+    public @Nullable Identifier getPolymerItemModel(ItemStack stack, PacketContext context, HolderLookup.Provider provider) {
         return this.model;
     }
 
@@ -67,8 +72,14 @@ public class PaintGun extends ProjectileWeaponItem implements PolymerItem {
     @Override
     public void onUseTick(Level level, LivingEntity livingEntity, ItemStack itemStack, int remaining) {
         if (livingEntity instanceof Player player) {
-            var projectileItem = DyeItem.byColor(color).getDefaultInstance();
-            if (!projectileItem.isEmpty() && !projectileItem.is(ItemTags.ARROWS)) {
+            // TODO: this doesnt seem right
+            DataComponentLookup<Item> itemComponents = level.registryAccess().lookupOrThrow(Registries.ITEM).componentLookup();
+            Collection<Holder<Item>> dye1Items = itemComponents.findAll(DataComponents.DYE, color);
+            if (dye1Items.isEmpty())
+                return;
+
+            var projectileItem = dye1Items.iterator().next().value().getDefaultInstance();
+            if (!projectileItem.is(ItemTags.ARROWS)) {
                 int timeUsed = this.getUseDuration(itemStack, livingEntity) - remaining;
                 if (timeUsed == 0 || timeUsed % 2 != 0)
                     return;
@@ -132,7 +143,7 @@ public class PaintGun extends ProjectileWeaponItem implements PolymerItem {
     public static void createProjectile(Level level, LivingEntity livingEntity, ItemStack itemStack) {
         var paintball = new Paintball((ServerLevel) level, livingEntity, itemStack);
         paintball.shootFromRotation(livingEntity, livingEntity.getXRot(), livingEntity.getYRot(), 1f, 1.5f, 4f);
-        paintball.setColor(((DyeItem)itemStack.getItem()).getDyeColor());
+        paintball.setColor(itemStack.get(DataComponents.DYE));
         var pos = livingEntity.getEyePosition();
         var right = livingEntity.getForward().normalize().cross(Direction.Axis.Y.getPositive().getUnitVec3()).normalize();
         right = right.scale(livingEntity.getUsedItemHand()==InteractionHand.MAIN_HAND ? 0.25 : -0.25);
