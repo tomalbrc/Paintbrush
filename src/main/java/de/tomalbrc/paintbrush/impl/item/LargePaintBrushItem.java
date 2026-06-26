@@ -12,6 +12,7 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.DyeColor;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.function.Function;
@@ -23,7 +24,7 @@ public class LargePaintBrushItem extends PaintBrushItem implements PolymerItem {
 
     @Override
     public void dyeForEach(ServerLevel level, BlockPos pos, Direction face, ItemStack itemStack, Player player, Function<Boolean, Boolean> o) {
-        for (BlockPos ipos : BlockPos.betweenClosed(AABB.ofSize(pos.getCenter(), face.getAxis() == Direction.Axis.X ? 0.5 : 1.5, face.getAxis() == Direction.Axis.Y ? 0.5 : 1.5, face.getAxis() == Direction.Axis.Z ? 0.5 : 1.5))) {
+        for (BlockPos ipos : BlockPos.betweenClosed(AABB.ofSize(Vec3.atCenterOf(pos), face.getAxis() == Direction.Axis.X ? 0.5 : 1.5, face.getAxis() == Direction.Axis.Y ? 0.5 : 1.5, face.getAxis() == Direction.Axis.Z ? 0.5 : 1.5))) {
             if (level.isClientSide() || !o.apply(dye(level, ipos, dyeColor))) {
                 return;
             }

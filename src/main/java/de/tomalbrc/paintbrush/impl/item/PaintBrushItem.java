@@ -27,6 +27,7 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
+import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -151,7 +152,7 @@ public class PaintBrushItem extends Item implements PolymerItem {
     }
 
     public static void sendPaintParticles(ServerLevel level, BlockPos pos, DyeColor dyeColor) {
-        var p = pos.getCenter();
+        var p = Vec3.atCenterOf(pos);
         level.sendParticles(new DustParticleOptions(dyeColor.getTextureDiffuseColor(), 1f), p.x, p.y, p.z, 20, 0.4, 0.4, 0.4, 0);
     }
 
