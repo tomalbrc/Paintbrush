@@ -98,10 +98,10 @@ public class Util {
                     var paletteIdRedirect = TEXTURE_REDIRECT.getOrDefault(id, id);
                     var img = ImageIO.read(new ByteArrayInputStream(resourcePackBuilder.getDataOrSource(AssetPaths.texture(paletteIdRedirect) + ".png")));
                     var paletteKeyImage = TextureGenerator.generatePaletteKey(img);
-                    resourcePackBuilder.addData("assets/minecraft/textures/colormap/color_palettes/" + valId.getPath() + "_key" + ".png", TextureGenerator.data(paletteKeyImage));
+                    resourcePackBuilder.addData("assets/minecraft/textures/palettes/colormap/color_palettes/" + valId.getPath() + "_key" + ".png", TextureGenerator.data(paletteKeyImage));
 
                     var paletted = TextureGenerator.generatePaletteColor(paletteKeyImage, dye.getName());
-                    resourcePackBuilder.addData("assets/minecraft/textures/colormap/color_palettes/" + valId.getPath() + "_" + dye.getName() + ".png", paletted);
+                    resourcePackBuilder.addData("assets/minecraft/textures/palettes/colormap/color_palettes/" + valId.getPath() + "_" + dye.getName() + ".png", paletted);
 
                     var suffixedId = id.withSuffix("_" + dye.getName());
                     modelBuilder.texture(entry.getKey(), Identifier.fromNamespaceAndPath("minecraft", suffixedId.getPath()));
